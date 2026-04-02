@@ -13,6 +13,7 @@ import { Plus, Save, Trash2, Users, Swords, Calendar, Newspaper } from 'lucide-r
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { normalizeWinnerId } from '@/lib/fightLogic';
 
 const Admin = () => {
   useDocumentTitle('Панель управления');
@@ -135,6 +136,7 @@ const FighterManager = () => {
 };
 
 const FightManager = () => {
+  const { isAdmin } = useAuth();
   const { toast } = useToast();
   const [fights, setFights] = useState<any[]>([]);
   const [fighters, setFighters] = useState<any[]>([]);
@@ -157,10 +159,28 @@ const FightManager = () => {
     setFighters(fighterData || []);
     setEvents(eventData || []);
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+
+    const channel = supabase
+      .channel('admin-fights-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fights' }, () => {
+        load();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.fighter1_id && form.fighter1_id === form.fighter2_id) {
+      toast({ title: 'Ошибка', description: 'Нельзя выбрать одного и того же боксёра для двух углов.', variant: 'destructive' });
+      return;
+    }
+
     const payload: any = {
       fighter1_id: form.fighter1_id || null,
       fighter2_id: form.fighter2_id || null,
@@ -171,7 +191,7 @@ const FightManager = () => {
       rounds: parseInt(form.rounds) || null,
       method: form.method || null,
       result: form.result || null,
-      winner_id: form.winner_id || null,
+      winner_id: normalizeWinnerId(form.winner_id),
       referee: form.referee || null,
       judge1: form.judge1 || null, judge1_score: form.judge1_score || null,
       judge2: form.judge2 || null, judge2_score: form.judge2_score || null,
@@ -179,8 +199,20 @@ const FightManager = () => {
       city: form.city || null, venue: form.venue || null, notes: form.notes || null,
     };
     const { error } = await supabase.from('fights').insert(payload);
-    if (error) toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
-    else { toast({ title: 'Бой добавлен' }); setShowForm(false); load(); }
+    if (error) {
+      toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    const { error: recalcError } = await supabase.rpc('recalculate_rankings');
+    if (recalcError) {
+      toast({ title: 'Бой добавлен', description: 'Бой сохранён, но пересчёт рейтингов не выполнен автоматически.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Бой добавлен', description: 'Данные сохранены, рейтинги пересчитаны.' });
+    }
+
+    setShowForm(false);
+    load();
   };
 
   const handleDelete = async (id: string) => {
@@ -266,7 +298,7 @@ const FightManager = () => {
               <p className="mt-1 font-display font-bold text-foreground">{f.fighter1?.name} vs {f.fighter2?.name}</p>
               <p className="text-sm text-muted-foreground">{f.method} · {f.weight_class}</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => handleDelete(f.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            {isAdmin && <Button variant="ghost" size="icon" onClick={() => handleDelete(f.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
           </div>
         ))}
         {fights.length === 0 && <p className="text-muted-foreground">Нет боёв</p>}

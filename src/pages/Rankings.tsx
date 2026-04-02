@@ -24,6 +24,17 @@ const Rankings = () => {
       setLoading(false);
     };
     load();
+
+    const channel = supabase
+      .channel('rankings-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rankings' }, () => {
+        load();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const weightClasses = [...new Set(byWeight.map((r: any) => r.weight_class))];

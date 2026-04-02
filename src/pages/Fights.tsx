@@ -28,6 +28,17 @@ const Fights = () => {
       setLoading(false);
     };
     load();
+
+    const channel = supabase
+      .channel('fights-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fights' }, () => {
+        load();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const weightClasses = useMemo(() => [...new Set(fights.map((f: any) => f.weight_class).filter(Boolean))], [fights]);

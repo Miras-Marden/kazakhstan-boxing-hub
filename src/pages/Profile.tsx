@@ -23,6 +23,9 @@ const Profile = () => {
   const [city, setCity] = useState('');
   const [favorites, setFavorites] = useState<any[]>([]);
   const [favFighters, setFavFighters] = useState<any[]>([]);
+  const [favFights, setFavFights] = useState<any[]>([]);
+  const [favNews, setFavNews] = useState<any[]>([]);
+  const [favEvents, setFavEvents] = useState<any[]>([]);
 
   useEffect(() => {
     if (!loading && !user) navigate('/auth');
@@ -45,9 +48,51 @@ const Profile = () => {
       if (fighterIds.length > 0) {
         const { data: fighters } = await supabase.from('fighters' as any).select('id, name, weight_class, wins, losses, draws').in('id', fighterIds);
         setFavFighters(fighters || []);
+      } else {
+        setFavFighters([]);
+      }
+
+      const fightIds = (data || []).filter((f: any) => f.item_type === 'fight').map((f: any) => f.item_id);
+      if (fightIds.length > 0) {
+        const { data: fights } = await supabase
+          .from('fights' as any)
+          .select('id, date, method, fighter1:fighters!fights_fighter1_id_fkey(id, name), fighter2:fighters!fights_fighter2_id_fkey(id, name)')
+          .in('id', fightIds)
+          .order('date', { ascending: false });
+        setFavFights(fights || []);
+      } else {
+        setFavFights([]);
+      }
+
+      const newsIds = (data || []).filter((f: any) => f.item_type === 'news').map((f: any) => f.item_id);
+      if (newsIds.length > 0) {
+        const { data: news } = await supabase.from('news' as any).select('id, title, category, published_at, created_at').in('id', newsIds);
+        setFavNews(news || []);
+      } else {
+        setFavNews([]);
+      }
+
+      const eventIds = (data || []).filter((f: any) => f.item_type === 'event').map((f: any) => f.item_id);
+      if (eventIds.length > 0) {
+        const { data: events } = await supabase.from('events' as any).select('id, name, city, date').in('id', eventIds).order('date', { ascending: false });
+        setFavEvents(events || []);
+      } else {
+        setFavEvents([]);
       }
     };
+
     loadFavorites();
+
+    const channel = supabase
+      .channel(`profile-favorites-${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'favorites', filter: `user_id=eq.${user.id}` }, () => {
+        loadFavorites();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -130,6 +175,54 @@ const Profile = () => {
                       <p className="text-xs text-muted-foreground">{f.weight_class}</p>
                     </div>
                     <span className="text-sm font-mono text-muted-foreground">{f.wins}-{f.losses}-{f.draws}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {favFights.length > 0 && (
+            <div className="mt-6 rounded-lg border bg-card p-6">
+              <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2"><Heart className="h-5 w-5 text-accent" /> Избранные бои</h2>
+              <div className="mt-4 space-y-2">
+                {favFights.map(f => (
+                  <Link key={f.id} to="/fights" className="flex items-center justify-between rounded-lg border p-3 hover:border-accent transition-colors">
+                    <div>
+                      <p className="font-medium text-foreground">{f.fighter1?.name} vs {f.fighter2?.name}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(f.date).toLocaleDateString('ru-RU')} · {f.method || 'N/A'}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {favEvents.length > 0 && (
+            <div className="mt-6 rounded-lg border bg-card p-6">
+              <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2"><Heart className="h-5 w-5 text-accent" /> Избранные события</h2>
+              <div className="mt-4 space-y-2">
+                {favEvents.map(e => (
+                  <Link key={e.id} to={`/events/${e.id}`} className="flex items-center justify-between rounded-lg border p-3 hover:border-accent transition-colors">
+                    <div>
+                      <p className="font-medium text-foreground">{e.name}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(e.date).toLocaleDateString('ru-RU')} · {e.city || 'Казахстан'}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {favNews.length > 0 && (
+            <div className="mt-6 rounded-lg border bg-card p-6">
+              <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2"><Heart className="h-5 w-5 text-accent" /> Избранные новости</h2>
+              <div className="mt-4 space-y-2">
+                {favNews.map(n => (
+                  <Link key={n.id} to="/news" className="flex items-center justify-between rounded-lg border p-3 hover:border-accent transition-colors">
+                    <div>
+                      <p className="font-medium text-foreground">{n.title}</p>
+                      <p className="text-xs text-muted-foreground">{n.category || 'Новости'} · {new Date(n.published_at || n.created_at).toLocaleDateString('ru-RU')}</p>
+                    </div>
                   </Link>
                 ))}
               </div>
