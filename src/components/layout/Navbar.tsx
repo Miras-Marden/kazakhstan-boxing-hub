@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Search } from 'lucide-react';
+import { Menu, X, Search, User, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 
 const navLinks = [
   { label: 'Главная', href: '/' },
@@ -15,6 +16,7 @@ const navLinks = [
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const { user, profile, signOut } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -50,6 +52,20 @@ const Navbar = () => {
               <Search className="h-5 w-5" />
             </Button>
           </Link>
+          {user ? (
+            <Link to="/profile">
+              <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">{profile?.full_name || 'Профиль'}</span>
+              </Button>
+            </Link>
+          ) : (
+            <Link to="/auth">
+              <Button size="sm" className="gold-gradient text-accent-foreground border-0">
+                Войти
+              </Button>
+            </Link>
+          )}
           <button
             className="md:hidden text-foreground"
             onClick={() => setMobileOpen(!mobileOpen)}
@@ -76,6 +92,20 @@ const Navbar = () => {
                 {link.label}
               </Link>
             ))}
+            {user ? (
+              <>
+                <Link to="/profile" onClick={() => setMobileOpen(false)} className="rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-secondary">
+                  Профиль
+                </Link>
+                <button onClick={() => { signOut(); setMobileOpen(false); }} className="rounded-md px-3 py-2.5 text-left text-sm font-medium text-muted-foreground hover:bg-secondary">
+                  Выйти
+                </button>
+              </>
+            ) : (
+              <Link to="/auth" onClick={() => setMobileOpen(false)} className="rounded-md px-3 py-2.5 text-sm font-medium text-accent hover:bg-secondary">
+                Войти
+              </Link>
+            )}
           </nav>
         </div>
       )}
