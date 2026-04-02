@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-export function useSupabaseQuery<T>(
+export function useSupabaseQuery<T = any>(
   table: string,
   options?: {
     select?: string;
     order?: { column: string; ascending?: boolean };
-    filters?: Array<{ column: string; op: string; value: any }>;
     eq?: Record<string, any>;
     limit?: number;
   }
@@ -17,32 +16,24 @@ export function useSupabaseQuery<T>(
 
   const fetchData = async () => {
     setLoading(true);
-    let query = (supabase.from(table) as any).select(options?.select || '*');
+    let query = supabase.from(table as any).select(options?.select || '*');
 
     if (options?.eq) {
       Object.entries(options.eq).forEach(([col, val]) => {
-        query = query.eq(col, val);
-      });
-    }
-
-    if (options?.filters) {
-      options.filters.forEach(f => {
-        if (f.op === 'eq') query = query.eq(f.column, f.value);
-        else if (f.op === 'ilike') query = query.ilike(f.column, f.value);
-        else if (f.op === 'in') query = query.in(f.column, f.value);
+        query = query.eq(col, val) as any;
       });
     }
 
     if (options?.order) {
-      query = query.order(options.order.column, { ascending: options.order.ascending ?? true });
+      query = query.order(options.order.column, { ascending: options.order.ascending ?? true }) as any;
     }
 
     if (options?.limit) {
-      query = query.limit(options.limit);
+      query = query.limit(options.limit) as any;
     }
 
     const { data: result, error: err } = await query;
-    setData(result || []);
+    setData((result as T[]) || []);
     setError(err?.message || null);
     setLoading(false);
   };
