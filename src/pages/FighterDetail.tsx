@@ -2,15 +2,19 @@ import { useParams, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, User, MapPin, Calendar, Trophy } from 'lucide-react';
+import { ArrowLeft, User, MapPin, Calendar, Heart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useFavorites } from '@/hooks/useFavorites';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const FighterDetail = () => {
   const { id } = useParams();
   const [fighter, setFighter] = useState<any>(null);
   const [fights, setFights] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isFavorite, toggle } = useFavorites('fighter');
 
   useEffect(() => {
     const load = async () => {
@@ -24,6 +28,8 @@ const FighterDetail = () => {
     };
     load();
   }, [id]);
+
+  useDocumentTitle(fighter?.name || 'Боксёр', fighter ? `${fighter.name} — профиль, рекорд ${fighter.wins}-${fighter.losses}-${fighter.draws}` : undefined);
 
   if (loading) return <Layout><div className="container py-16"><Skeleton className="h-64 w-full" /></div></Layout>;
   if (!fighter) return (
@@ -43,11 +49,16 @@ const FighterDetail = () => {
         <div className="container py-8">
           <Link to="/fighters" className="inline-flex items-center gap-1 text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors"><ArrowLeft className="h-4 w-4" /> Боксёры</Link>
           <div className="mt-6 flex flex-col gap-6 md:flex-row md:items-start">
-            <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/10"><User className="h-12 w-12 text-primary-foreground/50" /></div>
+            <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/10">
+              {fighter.photo_url ? <img src={fighter.photo_url} alt={fighter.name} className="h-full w-full rounded-xl object-cover" /> : <User className="h-12 w-12 text-primary-foreground/50" />}
+            </div>
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="font-display text-3xl font-bold md:text-4xl">{fighter.name}</h1>
                 <Badge className={fighter.status === 'active' ? 'gold-gradient text-accent-foreground border-0' : 'bg-primary-foreground/10 text-primary-foreground/70 border-0'}>{statusLabel(fighter.status)}</Badge>
+                <Button variant="ghost" size="icon" className="text-primary-foreground/60 hover:text-accent" onClick={() => toggle(fighter.id)}>
+                  <Heart className={`h-5 w-5 ${isFavorite(fighter.id) ? 'fill-accent text-accent' : ''}`} />
+                </Button>
               </div>
               {fighter.name_en && <p className="mt-1 text-primary-foreground/60">{fighter.name_en}</p>}
               <div className="mt-4 flex flex-wrap gap-4 text-sm text-primary-foreground/70">
@@ -56,7 +67,7 @@ const FighterDetail = () => {
                 <span>{fighter.stance}</span>
                 <span>{fighter.weight_class}</span>
               </div>
-              <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-5">
+              <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5 sm:gap-4">
                 {[{ label: 'Победы', value: fighter.wins, accent: true }, { label: 'Поражения', value: fighter.losses }, { label: 'Ничьи', value: fighter.draws }, { label: 'Нокауты', value: fighter.knockouts }, { label: 'KO%', value: `${koPercent}%` }].map((stat) => (
                   <div key={stat.label} className="rounded-lg bg-primary-foreground/5 p-3 text-center">
                     <p className={`font-display text-2xl font-bold ${stat.accent ? 'text-accent' : ''}`}>{stat.value}</p>
@@ -80,12 +91,12 @@ const FighterDetail = () => {
                     const isWinner = fight.winner_id === fighter.id;
                     const opponent = fight.fighter1?.id === fighter.id ? fight.fighter2 : fight.fighter1;
                     return (
-                      <div key={fight.id} className="flex items-center gap-4 rounded-lg border bg-card p-4">
-                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md font-display font-bold text-sm ${isWinner ? 'gold-gradient text-accent-foreground' : 'bg-secondary text-muted-foreground'}`}>{isWinner ? 'W' : fight.winner_id ? 'L' : 'D'}</div>
+                      <div key={fight.id} className="flex items-center gap-3 rounded-lg border bg-card p-3 sm:gap-4 sm:p-4">
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md font-display font-bold text-sm sm:h-10 sm:w-10 ${isWinner ? 'gold-gradient text-accent-foreground' : 'bg-secondary text-muted-foreground'}`}>{isWinner ? 'W' : fight.winner_id ? 'L' : 'D'}</div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <Link to={`/fighters/${opponent?.id}`} className="font-medium text-foreground hover:text-accent truncate">{opponent?.name}</Link>
-                            <span className="text-xs text-muted-foreground">{fight.method} R{fight.rounds}</span>
+                            <span className="text-xs text-muted-foreground hidden sm:inline">{fight.method} R{fight.rounds}</span>
                           </div>
                           <p className="text-xs text-muted-foreground">{fight.event?.name} · {new Date(fight.date).toLocaleDateString('ru-RU')}</p>
                         </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,10 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { User, LogOut, Shield } from 'lucide-react';
+import { User, LogOut, Shield, Heart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const Profile = () => {
+  useDocumentTitle('Профиль');
   const { user, profile, roles, isAdmin, isEditor, signOut, refreshProfile, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -18,6 +21,8 @@ const Profile = () => {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
+  const [favorites, setFavorites] = useState<any[]>([]);
+  const [favFighters, setFavFighters] = useState<any[]>([]);
 
   useEffect(() => {
     if (!loading && !user) navigate('/auth');
@@ -31,29 +36,33 @@ const Profile = () => {
     }
   }, [profile]);
 
+  useEffect(() => {
+    if (!user) return;
+    const loadFavorites = async () => {
+      const { data } = await supabase.from('favorites' as any).select('*').eq('user_id', user.id);
+      setFavorites(data || []);
+      const fighterIds = (data || []).filter((f: any) => f.item_type === 'fighter').map((f: any) => f.item_id);
+      if (fighterIds.length > 0) {
+        const { data: fighters } = await supabase.from('fighters' as any).select('id, name, weight_class, wins, losses, draws').in('id', fighterIds);
+        setFavFighters(fighters || []);
+      }
+    };
+    loadFavorites();
+  }, [user]);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     setSaving(true);
     const { error } = await supabase.from('profiles').update({
-      full_name: fullName,
-      phone,
-      city,
-      updated_at: new Date().toISOString(),
+      full_name: fullName, phone, city, updated_at: new Date().toISOString(),
     }).eq('id', user.id);
     setSaving(false);
-    if (error) {
-      toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Профиль обновлён' });
-      await refreshProfile();
-    }
+    if (error) toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
+    else { toast({ title: 'Профиль обновлён' }); await refreshProfile(); }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
-  };
+  const handleSignOut = async () => { await signOut(); navigate('/'); };
 
   if (loading || !user) return null;
 
@@ -78,7 +87,7 @@ const Profile = () => {
               <div>
                 <p className="font-display text-lg font-bold text-foreground">{profile?.full_name || 'Не указано'}</p>
                 <p className="text-sm text-muted-foreground">{user.email}</p>
-                <div className="mt-1 flex gap-1">
+                <div className="mt-1 flex gap-1 flex-wrap">
                   {roles.map(role => (
                     <Badge key={role} variant={role === 'admin' ? 'default' : 'secondary'} className={role === 'admin' ? 'gold-gradient text-accent-foreground border-0' : ''}>
                       <Shield className="mr-1 h-3 w-3" />
@@ -109,6 +118,23 @@ const Profile = () => {
               </Button>
             </form>
           </div>
+
+          {favFighters.length > 0 && (
+            <div className="mt-6 rounded-lg border bg-card p-6">
+              <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2"><Heart className="h-5 w-5 text-accent" /> Избранные боксёры</h2>
+              <div className="mt-4 space-y-2">
+                {favFighters.map(f => (
+                  <Link key={f.id} to={`/fighters/${f.id}`} className="flex items-center justify-between rounded-lg border p-3 hover:border-accent transition-colors">
+                    <div>
+                      <p className="font-medium text-foreground">{f.name}</p>
+                      <p className="text-xs text-muted-foreground">{f.weight_class}</p>
+                    </div>
+                    <span className="text-sm font-mono text-muted-foreground">{f.wins}-{f.losses}-{f.draws}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           {(isAdmin || isEditor) && (
             <div className="mt-6 rounded-lg border bg-card p-6">

@@ -6,8 +6,10 @@ import { Calendar, MapPin, Swords } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const Events = () => {
+  useDocumentTitle('События', 'Турниры и боксёрские вечера в Казахстане');
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -47,11 +49,12 @@ const Events = () => {
                 <h3 className="mt-3 font-display text-lg font-bold text-foreground group-hover:text-accent transition-colors">{event.name}</h3>
                 <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                   <p className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{new Date(event.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                  <p className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{event.venue}, {event.city}</p>
+                  {(event.venue || event.city) && <p className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{[event.venue, event.city].filter(Boolean).join(', ')}</p>}
                 </div>
                 {event.description && <p className="mt-3 text-sm text-muted-foreground line-clamp-2">{event.description}</p>}
               </Link>
             ))}
+            {filtered.length === 0 && <p className="col-span-full py-8 text-center text-muted-foreground">Нет событий</p>}
           </div>
         )}
       </div>

@@ -2,11 +2,14 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Filter, User } from 'lucide-react';
+import { Search, Filter, User, Heart } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useFavorites } from '@/hooks/useFavorites';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const weightClasses = [
   'Минимальный', 'Наилегчайший', 'Легчайший', 'Суперлегчайший',
@@ -16,11 +19,13 @@ const weightClasses = [
 ];
 
 const Fighters = () => {
+  useDocumentTitle('Боксёры', 'База данных казахстанских профессиональных боксёров');
   const [fighters, setFighters] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [weightFilter, setWeightFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const { isFavorite, toggle } = useFavorites('fighter');
 
   useEffect(() => {
     const load = async () => {
@@ -89,6 +94,7 @@ const Fighters = () => {
                     <th className="hidden px-4 py-3 text-center font-semibold text-secondary-foreground sm:table-cell">KO</th>
                     <th className="px-4 py-3 text-right font-semibold text-secondary-foreground">Рейтинг</th>
                     <th className="hidden px-4 py-3 text-center font-semibold text-secondary-foreground sm:table-cell">Статус</th>
+                    <th className="px-2 py-3 w-10"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -96,8 +102,10 @@ const Fighters = () => {
                     <tr key={fighter.id} className="border-b last:border-0 transition-colors hover:bg-secondary/50">
                       <td className="px-4 py-3">
                         <Link to={`/fighters/${fighter.id}`} className="flex items-center gap-3 font-medium text-foreground hover:text-accent transition-colors">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary"><User className="h-4 w-4 text-muted-foreground" /></div>
-                          <div><p>{fighter.name}</p>{fighter.name_en && <p className="text-xs text-muted-foreground">{fighter.name_en}</p>}</div>
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary shrink-0">
+                            {fighter.photo_url ? <img src={fighter.photo_url} alt="" className="h-8 w-8 rounded-full object-cover" /> : <User className="h-4 w-4 text-muted-foreground" />}
+                          </div>
+                          <div className="min-w-0"><p className="truncate">{fighter.name}</p>{fighter.name_en && <p className="text-xs text-muted-foreground truncate">{fighter.name_en}</p>}</div>
                         </Link>
                       </td>
                       <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">{fighter.city}</td>
@@ -109,6 +117,11 @@ const Fighters = () => {
                         <Badge variant={fighter.status === 'active' ? 'default' : 'secondary'} className={fighter.status === 'active' ? 'gold-gradient text-accent-foreground border-0' : ''}>
                           {statusLabel(fighter.status)}
                         </Badge>
+                      </td>
+                      <td className="px-2 py-3">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggle(fighter.id)}>
+                          <Heart className={`h-4 w-4 ${isFavorite(fighter.id) ? 'fill-accent text-accent' : 'text-muted-foreground'}`} />
+                        </Button>
                       </td>
                     </tr>
                   ))}
