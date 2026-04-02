@@ -1,17 +1,26 @@
-import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
-import { news } from '@/data/mockData';
+import { supabase } from '@/integrations/supabase/client';
 
 const News = () => {
+  const [newsList, setNewsList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState('all');
-  const categories = ['all', ...Array.from(new Set(news.map(n => n.category)))];
+
+  useEffect(() => {
+    const load = async () => {
+      const { data } = await supabase.from('news' as any).select('*').eq('status', 'published').order('published_at', { ascending: false });
+      setNewsList(data || []);
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const categories = ['all', ...Array.from(new Set(newsList.map((n: any) => n.category).filter(Boolean)))];
 
   const filtered = useMemo(() => {
-    return news
-      .filter(n => category === 'all' || n.category === category)
-      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-  }, [category]);
+    return newsList.filter((n: any) => category === 'all' || n.category === category);
+  }, [category, newsList]);
 
   return (
     <Layout>
@@ -36,7 +45,7 @@ const News = () => {
         </div>
 
         <div className="mt-6 grid gap-6 md:grid-cols-2">
-          {filtered.map((article) => (
+          {filtered.map((article: any) => (
             <article key={article.id} className="group rounded-lg border bg-card overflow-hidden transition-all hover:shadow-md hover:border-accent">
               <div className="p-6">
                 <div className="flex items-center gap-2">
@@ -46,16 +55,18 @@ const News = () => {
                   <span className="text-xs text-muted-foreground">{article.category}</span>
                   <span className="text-xs text-muted-foreground">·</span>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(article.publishedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    {article.published_at && new Date(article.published_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </span>
                 </div>
                 <h2 className="mt-3 font-display text-xl font-bold text-foreground group-hover:text-accent transition-colors">{article.title}</h2>
                 <p className="mt-2 text-sm text-muted-foreground line-clamp-3">{article.excerpt}</p>
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {article.tags.map((tag) => (
-                    <span key={tag} className="rounded-md bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{tag}</span>
-                  ))}
-                </div>
+                {article.tags && article.tags.length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-1.5">
+                    {article.tags.map((tag: string) => (
+                      <span key={tag} className="rounded-md bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{tag}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             </article>
           ))}
