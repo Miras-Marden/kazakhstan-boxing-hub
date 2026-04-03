@@ -6,7 +6,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { User, LogOut, Shield, Heart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +23,6 @@ const Profile = () => {
   const [avatarUrl, setAvatarUrl] = useState('');
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
-  const [bio, setBio] = useState('');
   const [favorites, setFavorites] = useState<any[]>([]);
   const [favFighters, setFavFighters] = useState<any[]>([]);
   const [favFights, setFavFights] = useState<any[]>([]);
@@ -41,7 +39,6 @@ const Profile = () => {
       setAvatarUrl(profile.avatar_url || '');
       setPhone(profile.phone || '');
       setCity(profile.city || '');
-      setBio(profile.bio || '');
     }
   }, [profile]);
 
@@ -112,39 +109,18 @@ const Profile = () => {
     if (!user) return;
     setSaving(true);
     const { error } = await supabase.from('profiles').update({
-      full_name: fullName,
-      avatar_url: avatarUrl || null,
-      phone,
-      city,
-      bio: bio || null,
-      updated_at: new Date().toISOString(),
+      full_name: fullName, avatar_url: avatarUrl || null, phone, city, updated_at: new Date().toISOString(),
     }).eq('id', user.id);
 
     let emailError: Error | null = null;
-    let metaError: Error | null = null;
     if (email && email !== user.email) {
       const { error: authError } = await supabase.auth.updateUser({ email });
       if (authError) emailError = authError;
     }
-    const { error: nameMetaErr } = await supabase.auth.updateUser({
-      data: { full_name: fullName },
-    });
-    if (nameMetaErr) metaError = nameMetaErr;
 
     setSaving(false);
-    if (error || emailError || metaError) {
-      toast({
-        title: 'Ошибка',
-        description: error?.message || emailError?.message || metaError?.message,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Профиль обновлён',
-        description: 'Если вы изменили email, подтвердите новый адрес в почте.',
-      });
-      await refreshProfile();
-    }
+    if (error || emailError) toast({ title: 'Ошибка', description: error?.message || emailError?.message, variant: 'destructive' });
+    else { toast({ title: 'Профиль обновлён', description: 'Если вы изменили email, подтвердите новый адрес в почте.' }); await refreshProfile(); }
   };
 
   const handleSignOut = async () => { await signOut(); navigate('/'); };
@@ -184,9 +160,6 @@ const Profile = () => {
                     </Badge>
                   ))}
                 </div>
-                {profile?.bio ? (
-                  <p className="mt-3 text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
-                ) : null}
               </div>
             </div>
 
@@ -212,10 +185,6 @@ const Profile = () => {
                   <Label>Город</Label>
                   <Input value={city} onChange={e => setCity(e.target.value)} placeholder="Алматы" />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label>О себе</Label>
-                <Textarea value={bio} onChange={e => setBio(e.target.value)} placeholder="Краткая биография или заметки (видны только вам в профиле)" rows={4} className="resize-y min-h-[100px]" />
               </div>
               <Button type="submit" className="gold-gradient text-accent-foreground border-0" disabled={saving}>
                 {saving ? 'Сохранение...' : 'Сохранить'}

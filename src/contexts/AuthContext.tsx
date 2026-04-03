@@ -11,13 +11,7 @@ interface AuthContextType {
   roles: AppRole[];
   isAdmin: boolean;
   isEditor: boolean;
-  profile: {
-    full_name: string | null;
-    avatar_url: string | null;
-    phone: string | null;
-    city: string | null;
-    bio: string | null;
-  } | null;
+  profile: { full_name: string | null; avatar_url: string | null; phone: string | null; city: string | null } | null;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -36,44 +30,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [profile, setProfile] = useState<AuthContextType['profile']>(null);
 
-  const fetchRolesAndProfile = async (userId: string, authUser?: User | null) => {
-    const [{ data: rolesData }, profileRes] = await Promise.all([
+  const fetchRolesAndProfile = async (userId: string) => {
+    const [{ data: rolesData }, { data: profileData }] = await Promise.all([
       supabase.from('user_roles').select('role').eq('user_id', userId),
-      supabase.from('profiles').select('full_name, avatar_url, phone, city, bio').eq('id', userId).maybeSingle(),
+      supabase.from('profiles').select('full_name, avatar_url, phone, city').eq('id', userId).single(),
     ]);
-    let profileData = profileRes.data;
-    let rolesList = (rolesData || []).map(r => r.role as AppRole);
-
-    if (rolesList.length === 0 && authUser) {
-      await supabase.from('user_roles').insert({ user_id: userId, role: 'user' });
-      const { data: rolesAgain } = await supabase.from('user_roles').select('role').eq('user_id', userId);
-      rolesList = (rolesAgain || []).map(r => r.role as AppRole);
-    }
-
-    if (!profileData && authUser) {
-      const fallbackName =
-        (authUser.user_metadata?.full_name as string | undefined)?.trim() ||
-        authUser.email?.split('@')[0] ||
-        '';
-      const { error: insertError } = await supabase.from('profiles').insert({
-        id: userId,
-        full_name: fallbackName || null,
-      });
-      if (!insertError) {
-        const { data: created } = await supabase
-          .from('profiles')
-          .select('full_name, avatar_url, phone, city, bio')
-          .eq('id', userId)
-          .maybeSingle();
-        profileData = created;
-      }
-    }
-    setRoles(rolesList);
+    setRoles((rolesData || []).map(r => r.role as AppRole));
     setProfile(profileData || null);
   };
 
   const refreshProfile = async () => {
-    if (user) await fetchRolesAndProfile(user.id, user);
+    if (user) await fetchRolesAndProfile(user.id);
   };
 
   useEffect(() => {
@@ -81,7 +48,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        setTimeout(() => fetchRolesAndProfile(session.user.id, session.user), 0);
+        setTimeout(() => fetchRolesAndProfile(session.user.id), 0);
       } else {
         setRoles([]);
         setProfile(null);
@@ -92,7 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) fetchRolesAndProfile(session.user.id, session.user);
+      if (session?.user) fetchRolesAndProfile(session.user.id);
       setLoading(false);
     });
 
