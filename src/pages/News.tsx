@@ -3,12 +3,15 @@ import Layout from '@/components/layout/Layout';
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { Input } from '@/components/ui/input';
 
 const News = () => {
   useDocumentTitle('Новости', 'Последние новости казахстанского бокса');
   const [newsList, setNewsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState('all');
+  const [query, setQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState('all');
 
   useEffect(() => {
     const load = async () => {
@@ -22,14 +25,47 @@ const News = () => {
   const categories = ['all', ...Array.from(new Set(newsList.map((n: any) => n.category).filter(Boolean)))];
 
   const filtered = useMemo(() => {
-    return newsList.filter((n: any) => category === 'all' || n.category === category);
-  }, [category, newsList]);
+    const now = Date.now();
+    return newsList.filter((n: any) => {
+      const inCategory = category === 'all' || n.category === category;
+      const haystack = `${n.title || ''} ${n.excerpt || ''} ${(n.tags || []).join(' ')}`.toLowerCase();
+      const inQuery = haystack.includes(query.toLowerCase());
+      if (!inCategory || !inQuery) return false;
+
+      if (dateFilter === 'all') return true;
+      const stamp = new Date(n.published_at || n.created_at).getTime();
+      const days = (now - stamp) / 86400000;
+      if (dateFilter === '7d') return days <= 7;
+      if (dateFilter === '30d') return days <= 30;
+      if (dateFilter === '365d') return days <= 365;
+      return true;
+    });
+  }, [category, newsList, query, dateFilter]);
 
   return (
     <Layout>
       <div className="container py-8">
         <h1 className="font-display text-3xl font-bold text-foreground md:text-4xl">Новости</h1>
         <p className="mt-2 text-muted-foreground">Последние новости казахстанского бокса</p>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <Input
+            placeholder="Поиск по заголовку, бойцу или тегам..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="sm:col-span-2"
+          />
+          <select
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="h-10 rounded-md border bg-background px-3 text-sm"
+          >
+            <option value="all">За всё время</option>
+            <option value="7d">За 7 дней</option>
+            <option value="30d">За 30 дней</option>
+            <option value="365d">За год</option>
+          </select>
+        </div>
 
         <div className="mt-6 flex gap-2 flex-wrap">
           {categories.map((cat) => (

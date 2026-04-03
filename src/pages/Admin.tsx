@@ -60,8 +60,10 @@ const Admin = () => {
 
 const FighterManager = () => {
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
   const [fighters, setFighters] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', name_en: '', city: '', nationality: 'Казахстан', stance: 'Правша', weight_class: '', status: 'active', bio: '', date_of_birth: '' });
 
   const load = async () => {
@@ -75,9 +77,17 @@ const FighterManager = () => {
     const slug = form.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-zа-яё0-9-]/gi, '');
     const payload: any = { ...form, slug };
     if (!payload.date_of_birth) delete payload.date_of_birth;
-    const { error } = await supabase.from('fighters').insert(payload);
+    const { error } = editingId
+      ? await supabase.from('fighters').update(payload).eq('id', editingId)
+      : await supabase.from('fighters').insert(payload);
     if (error) toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
-    else { toast({ title: 'Боксёр добавлен' }); setShowForm(false); setForm({ name: '', name_en: '', city: '', nationality: 'Казахстан', stance: 'Правша', weight_class: '', status: 'active', bio: '', date_of_birth: '' }); load(); }
+    else {
+      toast({ title: editingId ? 'Боксёр обновлён' : 'Боксёр добавлен' });
+      setShowForm(false);
+      setEditingId(null);
+      setForm({ name: '', name_en: '', city: '', nationality: 'Казахстан', stance: 'Правша', weight_class: '', status: 'active', bio: '', date_of_birth: '' });
+      load();
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -90,7 +100,7 @@ const FighterManager = () => {
     <div className="mt-6">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-xl font-bold text-foreground">Управление боксёрами</h2>
-        <Button onClick={() => setShowForm(!showForm)} size="sm"><Plus className="mr-1 h-4 w-4" />Добавить</Button>
+        <Button onClick={() => { setShowForm(!showForm); if (showForm) setEditingId(null); }} size="sm"><Plus className="mr-1 h-4 w-4" />Добавить</Button>
       </div>
       {showForm && (
         <form onSubmit={handleAdd} className="mt-4 rounded-lg border bg-card p-6 space-y-4">
@@ -108,7 +118,7 @@ const FighterManager = () => {
             </div>
           </div>
           <div className="space-y-2"><Label>Биография</Label><Textarea value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })} rows={3} /></div>
-          <Button type="submit"><Save className="mr-1 h-4 w-4" />Сохранить</Button>
+          <Button type="submit"><Save className="mr-1 h-4 w-4" />{editingId ? 'Обновить' : 'Сохранить'}</Button>
         </form>
       )}
       <div className="mt-4 overflow-hidden rounded-lg border bg-card">
@@ -124,7 +134,32 @@ const FighterManager = () => {
                   <td className="hidden md:table-cell px-4 py-3 text-muted-foreground">{f.weight_class}</td>
                   <td className="px-4 py-3 text-center font-mono">{f.wins}-{f.losses}-{f.draws}</td>
                   <td className="px-4 py-3 text-right font-semibold">{f.rating}</td>
-                  <td className="px-4 py-3 text-right"><Button variant="ghost" size="icon" onClick={() => handleDelete(f.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingId(f.id);
+                          setForm({
+                            name: f.name || '',
+                            name_en: f.name_en || '',
+                            city: f.city || '',
+                            nationality: f.nationality || 'Казахстан',
+                            stance: f.stance || 'Правша',
+                            weight_class: f.weight_class || '',
+                            status: f.status || 'active',
+                            bio: f.bio || '',
+                            date_of_birth: f.date_of_birth || '',
+                          });
+                          setShowForm(true);
+                        }}
+                      >
+                        Ред.
+                      </Button>
+                      {isAdmin && <Button variant="ghost" size="icon" onClick={() => handleDelete(f.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -142,6 +177,7 @@ const FightManager = () => {
   const [fighters, setFighters] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingFightId, setEditingFightId] = useState<string | null>(null);
   const [form, setForm] = useState({
     fighter1_id: '', fighter2_id: '', event_id: '', date: '', weight_class: '',
     scheduled_rounds: '12', rounds: '', method: '', result: '', winner_id: '',
@@ -198,7 +234,9 @@ const FightManager = () => {
       judge3: form.judge3 || null, judge3_score: form.judge3_score || null,
       city: form.city || null, venue: form.venue || null, notes: form.notes || null,
     };
-    const { error } = await supabase.from('fights').insert(payload);
+    const { error } = editingFightId
+      ? await supabase.from('fights').update(payload).eq('id', editingFightId)
+      : await supabase.from('fights').insert(payload);
     if (error) {
       toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
       return;
@@ -208,10 +246,17 @@ const FightManager = () => {
     if (recalcError) {
       toast({ title: 'Бой добавлен', description: 'Бой сохранён, но пересчёт рейтингов не выполнен автоматически.', variant: 'destructive' });
     } else {
-      toast({ title: 'Бой добавлен', description: 'Данные сохранены, рейтинги пересчитаны.' });
+      toast({ title: editingFightId ? 'Бой обновлён' : 'Бой добавлен', description: 'Данные сохранены, рейтинги пересчитаны.' });
     }
 
     setShowForm(false);
+    setEditingFightId(null);
+    setForm({
+      fighter1_id: '', fighter2_id: '', event_id: '', date: '', weight_class: '',
+      scheduled_rounds: '12', rounds: '', method: '', result: '', winner_id: '',
+      referee: '', judge1: '', judge1_score: '', judge2: '', judge2_score: '', judge3: '', judge3_score: '',
+      city: '', venue: '', notes: ''
+    });
     load();
   };
 
@@ -225,7 +270,7 @@ const FightManager = () => {
     <div className="mt-6">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-xl font-bold text-foreground">Управление боями</h2>
-        <Button onClick={() => setShowForm(!showForm)} size="sm"><Plus className="mr-1 h-4 w-4" />Добавить</Button>
+        <Button onClick={() => { setShowForm(!showForm); if (showForm) setEditingFightId(null); }} size="sm"><Plus className="mr-1 h-4 w-4" />Добавить</Button>
       </div>
       {showForm && (
         <form onSubmit={handleAdd} className="mt-4 rounded-lg border bg-card p-6 space-y-4">
@@ -287,7 +332,7 @@ const FightManager = () => {
             <div className="space-y-1"><Label className="text-xs">Судья 3</Label><Input value={form.judge3} onChange={e => setForm({ ...form, judge3: e.target.value })} placeholder="Имя" /><Input value={form.judge3_score} onChange={e => setForm({ ...form, judge3_score: e.target.value })} placeholder="Счёт" /></div>
           </div>
           <div className="space-y-2"><Label>Заметки</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} /></div>
-          <Button type="submit"><Save className="mr-1 h-4 w-4" />Сохранить</Button>
+          <Button type="submit"><Save className="mr-1 h-4 w-4" />{editingFightId ? 'Обновить' : 'Сохранить'}</Button>
         </form>
       )}
       <div className="mt-4 space-y-3">
@@ -298,7 +343,41 @@ const FightManager = () => {
               <p className="mt-1 font-display font-bold text-foreground">{f.fighter1?.name} vs {f.fighter2?.name}</p>
               <p className="text-sm text-muted-foreground">{f.method} · {f.weight_class}</p>
             </div>
-            {isAdmin && <Button variant="ghost" size="icon" onClick={() => handleDelete(f.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setEditingFightId(f.id);
+                  setForm({
+                    fighter1_id: f.fighter1_id || '',
+                    fighter2_id: f.fighter2_id || '',
+                    event_id: f.event_id || '',
+                    date: f.date || '',
+                    weight_class: f.weight_class || '',
+                    scheduled_rounds: String(f.scheduled_rounds || 12),
+                    rounds: f.rounds ? String(f.rounds) : '',
+                    method: f.method || '',
+                    result: f.result || '',
+                    winner_id: f.winner_id || '',
+                    referee: f.referee || '',
+                    judge1: f.judge1 || '',
+                    judge1_score: f.judge1_score || '',
+                    judge2: f.judge2 || '',
+                    judge2_score: f.judge2_score || '',
+                    judge3: f.judge3 || '',
+                    judge3_score: f.judge3_score || '',
+                    city: f.city || '',
+                    venue: f.venue || '',
+                    notes: f.notes || '',
+                  });
+                  setShowForm(true);
+                }}
+              >
+                Ред.
+              </Button>
+              {isAdmin && <Button variant="ghost" size="icon" onClick={() => handleDelete(f.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
+            </div>
           </div>
         ))}
         {fights.length === 0 && <p className="text-muted-foreground">Нет боёв</p>}

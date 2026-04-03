@@ -22,9 +22,11 @@ const Navbar = () => {
     <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="container flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary">
-            <span className="font-display text-sm font-bold text-primary-foreground">KR</span>
-          </div>
+          <img
+            src="/images/photo1.png"
+            alt="KPBF logo"
+            className="h-9 w-9 rounded-md object-cover"
+          />
           <span className="font-display text-xl font-bold tracking-tight text-foreground">
             KPBF <span className="text-accent">REC</span>
           </span>

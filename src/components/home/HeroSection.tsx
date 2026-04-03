@@ -4,7 +4,6 @@ import { Search } from 'lucide-react';
 
 const HeroSection = () => (
   <section className="relative overflow-hidden navy-gradient text-primary-foreground">
-    {/* Background logo placeholder */}
     <div className="absolute inset-0 flex items-center justify-center opacity-5">
       <div className="h-[500px] w-[500px] rounded-full border-[40px] border-current" />
     </div>
@@ -12,6 +11,11 @@ const HeroSection = () => (
 
     <div className="container relative z-10 py-20 md:py-32">
       <div className="mx-auto max-w-3xl text-center">
+        <img
+          src="/images/photo1.png"
+          alt="Казахстанская Федерация Профессионального Бокса"
+          className="mx-auto mb-5 h-20 w-20 rounded-full border border-primary-foreground/20 object-cover shadow-md md:h-24 md:w-24"
+        />
         <h1 className="font-display text-5xl font-bold tracking-tight md:text-7xl">
           KPBF <span className="text-accent">REC</span>
         </h1>

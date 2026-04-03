@@ -19,6 +19,8 @@ const Profile = () => {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
   const [favorites, setFavorites] = useState<any[]>([]);
@@ -34,10 +36,17 @@ const Profile = () => {
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || '');
+      setAvatarUrl(profile.avatar_url || '');
       setPhone(profile.phone || '');
       setCity(profile.city || '');
     }
   }, [profile]);
+
+  useEffect(() => {
+    if (user?.email) {
+      setEmail(user.email);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -100,11 +109,18 @@ const Profile = () => {
     if (!user) return;
     setSaving(true);
     const { error } = await supabase.from('profiles').update({
-      full_name: fullName, phone, city, updated_at: new Date().toISOString(),
+      full_name: fullName, avatar_url: avatarUrl || null, phone, city, updated_at: new Date().toISOString(),
     }).eq('id', user.id);
+
+    let emailError: Error | null = null;
+    if (email && email !== user.email) {
+      const { error: authError } = await supabase.auth.updateUser({ email });
+      if (authError) emailError = authError;
+    }
+
     setSaving(false);
-    if (error) toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
-    else { toast({ title: 'Профиль обновлён' }); await refreshProfile(); }
+    if (error || emailError) toast({ title: 'Ошибка', description: error?.message || emailError?.message, variant: 'destructive' });
+    else { toast({ title: 'Профиль обновлён', description: 'Если вы изменили email, подтвердите новый адрес в почте.' }); await refreshProfile(); }
   };
 
   const handleSignOut = async () => { await signOut(); navigate('/'); };
@@ -127,7 +143,11 @@ const Profile = () => {
           <div className="mt-6 rounded-lg border bg-card p-6">
             <div className="flex items-center gap-4">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
-                <User className="h-8 w-8 text-muted-foreground" />
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt={profile?.full_name || 'Профиль'} className="h-16 w-16 rounded-full object-cover" />
+                ) : (
+                  <User className="h-8 w-8 text-muted-foreground" />
+                )}
               </div>
               <div>
                 <p className="font-display text-lg font-bold text-foreground">{profile?.full_name || 'Не указано'}</p>
@@ -147,6 +167,14 @@ const Profile = () => {
               <div className="space-y-2">
                 <Label>Полное имя</Label>
                 <Input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Иван Иванов" />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" type="email" />
+              </div>
+              <div className="space-y-2">
+                <Label>Фото (URL)</Label>
+                <Input value={avatarUrl} onChange={e => setAvatarUrl(e.target.value)} placeholder="https://..." />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">

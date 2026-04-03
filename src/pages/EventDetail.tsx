@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ArrowLeft, Calendar, MapPin, Swords } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const EventDetail = () => {
   const { id } = useParams();
@@ -24,6 +25,11 @@ const EventDetail = () => {
     };
     load();
   }, [id]);
+
+  useDocumentTitle(
+    event?.name || 'Событие',
+    event ? `${event.name} — кард, дата и результаты боёв` : 'Детали боксёрского события',
+  );
 
   if (loading) return <Layout><div className="container py-16"><Skeleton className="h-64 w-full" /></div></Layout>;
   if (!event) return (

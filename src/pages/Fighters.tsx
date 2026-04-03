@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useAuth } from '@/contexts/AuthContext';
 
 const weightClasses = [
   'Минимальный', 'Наилегчайший', 'Легчайший', 'Суперлегчайший',
@@ -25,7 +26,10 @@ const Fighters = () => {
   const [search, setSearch] = useState('');
   const [weightFilter, setWeightFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('rating');
+  const [page, setPage] = useState(1);
   const { isFavorite, toggle } = useFavorites('fighter');
+  const { isAdmin, isEditor } = useAuth();
 
   useEffect(() => {
     const load = async () => {
@@ -37,18 +41,38 @@ const Fighters = () => {
   }, []);
 
   const filtered = useMemo(() => {
-    return fighters.filter((f: any) => {
+    const base = fighters.filter((f: any) => {
       const matchSearch = f.name.toLowerCase().includes(search.toLowerCase()) ||
         (f.name_en && f.name_en.toLowerCase().includes(search.toLowerCase()));
       const matchWeight = weightFilter === 'all' || f.weight_class === weightFilter;
       const matchStatus = statusFilter === 'all' || f.status === statusFilter;
       return matchSearch && matchWeight && matchStatus;
     });
-  }, [search, weightFilter, statusFilter, fighters]);
+
+    if (sortBy === 'alphabet') {
+      return [...base].sort((a: any, b: any) => a.name.localeCompare(b.name, 'ru'));
+    }
+
+    return [...base].sort((a: any, b: any) => (b.rating || 0) - (a.rating || 0));
+  }, [search, weightFilter, statusFilter, fighters, sortBy]);
+
+  const pageSize = 12;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const statusLabel = (s: string) => {
     switch (s) { case 'active': return 'Активен'; case 'inactive': return 'Неактивен'; case 'retired': return 'Завершил'; default: return s; }
   };
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, weightFilter, statusFilter, sortBy]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   return (
     <Layout>
@@ -77,6 +101,13 @@ const Fighters = () => {
               <SelectItem value="retired">Завершившие</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-full sm:w-48"><SelectValue placeholder="Сортировка" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="rating">По рейтингу</SelectItem>
+              <SelectItem value="alphabet">По алфавиту</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {loading ? (
@@ -98,7 +129,7 @@ const Fighters = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((fighter: any) => (
+                  {paginated.map((fighter: any) => (
                     <tr key={fighter.id} className="border-b last:border-0 transition-colors hover:bg-secondary/50">
                       <td className="px-4 py-3">
                         <Link to={`/fighters/${fighter.id}`} className="flex items-center gap-3 font-medium text-foreground hover:text-accent transition-colors">
@@ -122,6 +153,11 @@ const Fighters = () => {
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggle(fighter.id)}>
                           <Heart className={`h-4 w-4 ${isFavorite(fighter.id) ? 'fill-accent text-accent' : 'text-muted-foreground'}`} />
                         </Button>
+                        {(isAdmin || isEditor) && (
+                          <Link to="/admin" className="text-[11px] text-accent hover:underline">
+                            Ред.
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -129,6 +165,22 @@ const Fighters = () => {
               </table>
             </div>
             {filtered.length === 0 && <p className="py-8 text-center text-muted-foreground">Боксёры не найдены</p>}
+          </div>
+        )}
+
+        {filtered.length > pageSize && (
+          <div className="mt-5 flex items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Страница {page} из {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(prev => Math.max(1, prev - 1))}>
+                Назад
+              </Button>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}>
+                Далее
+              </Button>
+            </div>
           </div>
         )}
       </div>
