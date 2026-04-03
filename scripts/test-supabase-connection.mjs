@@ -51,7 +51,17 @@ if (!url || !key) {
 
 const supabase = createClient(url, key);
 
-const tables = ["fighters", "fights", "news", "rankings"];
+const tables = [
+  "profiles",
+  "user_roles",
+  "fighters",
+  "fights",
+  "events",
+  "news",
+  "rankings",
+  "favorites",
+  "weight_classes",
+];
 
 console.log("URL:", url);
 console.log("Проверка SELECT (limit 1) по таблицам...\n");

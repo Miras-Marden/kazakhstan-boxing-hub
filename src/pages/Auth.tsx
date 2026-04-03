@@ -38,7 +38,7 @@ const Auth = () => {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: regEmail,
       password: regPassword,
       options: { data: { full_name: regName } },
@@ -46,8 +46,11 @@ const Auth = () => {
     setLoading(false);
     if (error) {
       toast({ title: 'Ошибка регистрации', description: error.message, variant: 'destructive' });
+    } else if (data.session) {
+      toast({ title: 'Регистрация успешна', description: 'Добро пожаловать в KPBF REC.' });
+      navigate('/profile');
     } else {
-      toast({ title: 'Регистрация успешна', description: 'Проверьте почту для подтверждения.' });
+      toast({ title: 'Регистрация успешна', description: 'Проверьте почту для подтверждения email.' });
     }
   };
 
