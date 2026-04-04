@@ -31,13 +31,13 @@ const HeroSection = () => (
             <Button className="gold-gradient text-accent-foreground font-semibold px-6 border-0">Боксёры</Button>
           </Link>
           <Link to="/rankings">
-            <Button variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">Рейтинги</Button>
+            <Button className="gold-gradient text-accent-foreground font-semibold px-6 border-0">Рейтинги</Button>
           </Link>
           <Link to="/events">
-            <Button variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">События</Button>
+            <Button className="gold-gradient text-accent-foreground font-semibold px-6 border-0">События</Button>
           </Link>
           <Link to="/news">
-            <Button variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">Новости</Button>
+            <Button className="gold-gradient text-accent-foreground font-semibold px-6 border-0">Новости</Button>
           </Link>
         </div>
 
