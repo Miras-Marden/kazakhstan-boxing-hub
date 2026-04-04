@@ -31,10 +31,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<AuthContextType['profile']>(null);
 
   const fetchRolesAndProfile = async (userId: string) => {
-    const [{ data: rolesData }, { data: profileData }] = await Promise.all([
+    const [
+      { data: rolesData, error: rolesError },
+      { data: profileData, error: profileError }
+    ] = await Promise.all([
       supabase.from('user_roles').select('role').eq('user_id', userId),
       supabase.from('profiles').select('full_name, avatar_url, phone, city').eq('id', userId).single(),
     ]);
+  
+    if (rolesError) {
+      console.error('fetchRolesAndProfile rolesError:', rolesError);
+    }
+  
+    if (profileError) {
+      console.error('fetchRolesAndProfile profileError:', profileError);
+    }
+  
     setRoles((rolesData || []).map(r => r.role as AppRole));
     setProfile(profileData || null);
   };

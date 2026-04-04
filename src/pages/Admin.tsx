@@ -511,40 +511,101 @@ const NewsManager = () => {
 };
 
 const UserManager = () => {
+  const { toast } = useToast();
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = async () => {
-    const { data } = await supabase.from('profiles').select('*, user_roles(role)');
+    setLoading(true);
+    setLoadError(null);
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        id,
+        full_name,
+        user_roles (
+          role
+        )
+      `)
+      .order('full_name', { ascending: true });
+
+    if (error) {
+      console.error('UserManager load error:', error);
+      setLoadError(error.message);
+      setProfiles([]);
+      setLoading(false);
+      toast({
+        title: 'Ошибка загрузки пользователей',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setProfiles(data || []);
+    setLoading(false);
   };
-  useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    load();
+  }, []);
 
   return (
     <div className="mt-6">
       <h2 className="font-display text-xl font-bold text-foreground">Пользователи</h2>
-      <div className="mt-4 overflow-hidden rounded-lg border bg-card">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead><tr className="border-b bg-secondary">
-              <th className="px-4 py-3 text-left">Имя</th><th className="px-4 py-3 text-left">Роли</th>
-            </tr></thead>
-            <tbody>
-              {profiles.map(p => (
-                <tr key={p.id} className="border-b last:border-0 hover:bg-secondary/50">
-                  <td className="px-4 py-3 font-medium text-foreground">{p.full_name || 'Не указано'}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-1 flex-wrap">
-                      {(p.user_roles || []).map((r: any) => (
-                        <Badge key={r.role} variant="secondary">{r.role}</Badge>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+      {loading && (
+        <p className="mt-4 text-sm text-muted-foreground">Загрузка пользователей...</p>
+      )}
+
+      {loadError && (
+        <div className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          Ошибка загрузки: {loadError}
         </div>
-      </div>
+      )}
+
+      {!loading && !loadError && (
+        <div className="mt-4 overflow-hidden rounded-lg border bg-card">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-secondary">
+                  <th className="px-4 py-3 text-left">Имя</th>
+                  <th className="px-4 py-3 text-left">Роли</th>
+                </tr>
+              </thead>
+              <tbody>
+                {profiles.map((p) => (
+                  <tr key={p.id} className="border-b last:border-0 hover:bg-secondary/50">
+                    <td className="px-4 py-3 font-medium text-foreground">
+                      {p.full_name || 'Не указано'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1 flex-wrap">
+                        {(p.user_roles || []).length > 0 ? (
+                          p.user_roles.map((r: any) => (
+                            <Badge key={r.role} variant="secondary">
+                              {r.role}
+                            </Badge>
+                          ))
+                        ) : (
+                          <Badge variant="outline">user</Badge>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {!loading && !loadError && profiles.length === 0 && (
+        <p className="mt-4 text-sm text-muted-foreground">Пользователи не найдены.</p>
+      )}
     </div>
   );
 };
