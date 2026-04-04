@@ -515,6 +515,7 @@ const UserManager = () => {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [savingUserId, setSavingUserId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -552,6 +553,66 @@ const UserManager = () => {
     load();
   }, []);
 
+  const getCurrentRole = (profile: any): 'admin' | 'editor' | 'user' => {
+    if (!profile?.user_roles) return 'user';
+
+    // one-to-one relation can come as object
+    if (!Array.isArray(profile.user_roles)) {
+      return (profile.user_roles.role || 'user') as 'admin' | 'editor' | 'user';
+    }
+
+    // one-to-many fallback
+    if (profile.user_roles.length > 0) {
+      return (profile.user_roles[0].role || 'user') as 'admin' | 'editor' | 'user';
+    }
+
+    return 'user';
+  };
+
+  const setLocalRole = (userId: string, role: 'admin' | 'editor' | 'user') => {
+    setProfiles(prev =>
+      prev.map(profile =>
+        profile.id === userId
+          ? {
+              ...profile,
+              user_roles: { role },
+            }
+          : profile
+      )
+    );
+  };
+
+  const saveRole = async (userId: string, role: 'admin' | 'editor' | 'user') => {
+    setSavingUserId(userId);
+
+    const { error } = await supabase
+      .from('user_roles')
+      .upsert(
+        {
+          user_id: userId,
+          role,
+        },
+        {
+          onConflict: 'user_id',
+        }
+      );
+
+    setSavingUserId(null);
+
+    if (error) {
+      console.error('saveRole error:', error);
+      toast({
+        title: 'Ошибка сохранения роли',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    toast({ title: 'Роль обновлена' });
+    await load();
+  };
+
   return (
     <div className="mt-6">
       <h2 className="font-display text-xl font-bold text-foreground">Пользователи</h2>
@@ -573,30 +634,50 @@ const UserManager = () => {
               <thead>
                 <tr className="border-b bg-secondary">
                   <th className="px-4 py-3 text-left">Имя</th>
-                  <th className="px-4 py-3 text-left">Роли</th>
+                  <th className="px-4 py-3 text-left">Роль</th>
+                  <th className="px-4 py-3 text-right">Действие</th>
                 </tr>
               </thead>
               <tbody>
-                {profiles.map((p) => (
-                  <tr key={p.id} className="border-b last:border-0 hover:bg-secondary/50">
-                    <td className="px-4 py-3 font-medium text-foreground">
-                      {p.full_name || 'Не указано'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1 flex-wrap">
-                        {(p.user_roles || []).length > 0 ? (
-                          p.user_roles.map((r: any) => (
-                            <Badge key={r.role} variant="secondary">
-                              {r.role}
-                            </Badge>
-                          ))
-                        ) : (
-                          <Badge variant="outline">user</Badge>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {profiles.map((profile) => {
+                  const currentRole = getCurrentRole(profile);
+
+                  return (
+                    <tr key={profile.id} className="border-b last:border-0 hover:bg-secondary/50">
+                      <td className="px-4 py-3 font-medium text-foreground">
+                        {profile.full_name || 'Не указано'}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <Select
+                          value={currentRole}
+                          onValueChange={(value) =>
+                            setLocalRole(profile.id, value as 'admin' | 'editor' | 'user')
+                          }
+                        >
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">Администратор</SelectItem>
+                            <SelectItem value="editor">Модератор</SelectItem>
+                            <SelectItem value="user">Пользователь</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          size="sm"
+                          onClick={() => saveRole(profile.id, getCurrentRole(profile))}
+                          disabled={savingUserId === profile.id}
+                        >
+                          {savingUserId === profile.id ? 'Сохранение...' : 'Сохранить'}
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
