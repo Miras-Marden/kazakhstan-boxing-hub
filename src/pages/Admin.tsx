@@ -79,14 +79,28 @@ const FighterManager = () => {
 });
 
  const load = async () => {
-  const [{ data: fightersData }, { data: weightClassesData }] = await Promise.all([
+  const [
+    { data: fightersData, error: fightersError },
+    { data: weightClassesData, error: weightClassesError }
+  ] = await Promise.all([
     supabase.from('fighters').select('*').order('rating', { ascending: false }),
     supabase.from('weight_classes').select('id, name, sort_order').order('sort_order', { ascending: true }),
   ]);
 
+  if (fightersError) {
+    console.error('FighterManager fightersError:', fightersError);
+    toast({ title: 'Ошибка', description: fightersError.message, variant: 'destructive' });
+  }
+
+  if (weightClassesError) {
+    console.error('FighterManager weightClassesError:', weightClassesError);
+    toast({ title: 'Ошибка категорий', description: weightClassesError.message, variant: 'destructive' });
+  }
+
   setFighters(fightersData || []);
   setWeightClasses(weightClassesData || []);
 };
+
   useEffect(() => { load(); }, []);
 
   const handleAdd = async (e: React.FormEvent) => {
