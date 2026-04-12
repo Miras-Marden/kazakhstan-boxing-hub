@@ -62,33 +62,72 @@ const FighterManager = () => {
   const { toast } = useToast();
   const { isAdmin } = useAuth();
   const [fighters, setFighters] = useState<any[]>([]);
+  const [weightClasses, setWeightClasses] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', name_en: '', city: '', nationality: 'Казахстан', stance: 'Правша', weight_class: '', status: 'active', bio: '', date_of_birth: '' });
+  const [form, setForm] = useState({
+  name: '',
+  name_en: '',
+  city: '',
+  nationality: 'Казахстан',
+  stance: 'Правша',
+  weight_class: '',
+  weight_class_id: '',
+  status: 'active',
+  bio: '',
+  date_of_birth: '',
+});
 
-  const load = async () => {
-    const { data } = await supabase.from('fighters').select('*').order('rating', { ascending: false });
-    setFighters(data || []);
-  };
+ const load = async () => {
+  const [{ data: fightersData }, { data: weightClassesData }] = await Promise.all([
+    supabase.from('fighters').select('*').order('rating', { ascending: false }),
+    supabase.from('weight_classes').select('id, name, sort_order').order('sort_order', { ascending: true }),
+  ]);
+
+  setFighters(fightersData || []);
+  setWeightClasses(weightClassesData || []);
+};
   useEffect(() => { load(); }, []);
 
   const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const slug = form.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-zа-яё0-9-]/gi, '');
-    const payload: any = { ...form, slug };
-    if (!payload.date_of_birth) delete payload.date_of_birth;
-    const { error } = editingId
-      ? await supabase.from('fighters').update(payload).eq('id', editingId)
-      : await supabase.from('fighters').insert(payload);
-    if (error) toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
-    else {
-      toast({ title: editingId ? 'Боксёр обновлён' : 'Боксёр добавлен' });
-      setShowForm(false);
-      setEditingId(null);
-      setForm({ name: '', name_en: '', city: '', nationality: 'Казахстан', stance: 'Правша', weight_class: '', status: 'active', bio: '', date_of_birth: '' });
-      load();
-    }
+  e.preventDefault();
+
+  const slug = form.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-zа-яё0-9-]/gi, '');
+
+  const payload: any = {
+    ...form,
+    slug,
+    weight_class: form.weight_class || null,
+    weight_class_id: form.weight_class_id || null,
   };
+
+  if (!payload.date_of_birth) delete payload.date_of_birth;
+
+  const { error } = editingId
+    ? await supabase.from('fighters').update(payload).eq('id', editingId)
+    : await supabase.from('fighters').insert(payload);
+
+  if (error) {
+    toast({ title: 'Ошибка', description: error.message, variant: 'destructive' });
+  } else {
+    toast({ title: editingId ? 'Боксёр обновлён' : 'Боксёр добавлен' });
+    setShowForm(false);
+    setEditingId(null);
+    setForm({
+  name: '',
+  name_en: '',
+  city: '',
+  nationality: 'Казахстан',
+  stance: 'Правша',
+  weight_class: '',
+  weight_class_id: '',
+  status: 'active',
+  bio: '',
+  date_of_birth: '',
+});
+    load();
+  }
+};
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from('fighters').delete().eq('id', id);
@@ -109,8 +148,31 @@ const FighterManager = () => {
             <div className="space-y-2"><Label>Имя (англ)</Label><Input value={form.name_en} onChange={e => setForm({ ...form, name_en: e.target.value })} /></div>
             <div className="space-y-2"><Label>Дата рождения</Label><Input type="date" value={form.date_of_birth} onChange={e => setForm({ ...form, date_of_birth: e.target.value })} /></div>
             <div className="space-y-2"><Label>Город</Label><Input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Категория</Label><Input value={form.weight_class} onChange={e => setForm({ ...form, weight_class: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Стойка</Label>
+<div className="space-y-2">
+  <Label>Категория</Label>
+  <Select
+    value={form.weight_class_id}
+    onValueChange={(value) => {
+      const selected = weightClasses.find((wc) => wc.id === value);
+      setForm({
+        ...form,
+        weight_class_id: value,
+        weight_class: selected?.name || '',
+      });
+    }}
+  >
+    <SelectTrigger>
+      <SelectValue placeholder="Выберите категорию" />
+    </SelectTrigger>
+    <SelectContent>
+      {weightClasses.map((wc) => (
+        <SelectItem key={wc.id} value={wc.id}>
+          {wc.name}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+</div>            <div className="space-y-2"><Label>Стойка</Label>
               <Select value={form.stance} onValueChange={v => setForm({ ...form, stance: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Правша">Правша</SelectItem><SelectItem value="Левша">Левша</SelectItem></SelectContent></Select>
             </div>
             <div className="space-y-2"><Label>Статус</Label>
@@ -148,6 +210,7 @@ const FighterManager = () => {
                             nationality: f.nationality || 'Казахстан',
                             stance: f.stance || 'Правша',
                             weight_class: f.weight_class || '',
+                            weight_class_id: f.weight_class_id || '',
                             status: f.status || 'active',
                             bio: f.bio || '',
                             date_of_birth: f.date_of_birth || '',
